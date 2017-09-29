@@ -3159,18 +3159,17 @@ background_import_then_checkpoint () {
 		echo "progress checkpoint"
 	) >&8 &
 
-	error=0
-	if read output <&9
-	then
-		if ! test "$output" = "progress checkpoint"
+	error=1 ;# assume the worst
+	while read output <&9
+	do
+		if test "$output" = "progress checkpoint"
 		then
-			echo >&2 "no progress checkpoint received: $output"
-			error=1
+			error=0
+			break
 		fi
-	else
-		echo >&2 "failed to read fast-import output"
-		error=1
-	fi
+		# otherwise ignore cruft
+		echo >&2 "cruft: $output"
+	done
 
 	if test $error -eq 1
 	then
@@ -3185,6 +3184,17 @@ background_import_still_running () {
 		false
 	fi
 }
+
+test_expect_success PIPE 'V: checkpoint helper does not get stuck with extra output' '
+	cat >input <<-INPUT_END &&
+	progress foo
+	progress bar
+
+	INPUT_END
+
+	background_import_then_checkpoint "" input &&
+	background_import_still_running
+'
 
 test_expect_success PIPE 'V: checkpoint updates refs after reset' '
 	cat >input <<-\INPUT_END &&
