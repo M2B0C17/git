@@ -883,6 +883,7 @@ void prepare_packed_git(void)
 	for (alt = alt_odb_list; alt; alt = alt->next)
 		prepare_packed_git_one(alt->path, 0);
 	rearrange_packed_git();
+	INIT_LIST_HEAD(&packed_git_mru.list);
 	prepare_packed_git_mru();
 	prepare_packed_git_run_once = 1;
 }
@@ -1831,13 +1832,14 @@ static int fill_pack_entry(const unsigned char *sha1,
  */
 int find_pack_entry(const unsigned char *sha1, struct pack_entry *e)
 {
-	struct mru_entry *p;
+	struct list_head *pos;
 
 	prepare_packed_git();
 	if (!packed_git)
 		return 0;
 
-	for (p = packed_git_mru.head; p; p = p->next) {
+	list_for_each(pos, &packed_git_mru.list) {
+		struct mru *p = list_entry(pos, struct mru, list);
 		if (fill_pack_entry(sha1, e, p->item)) {
 			mru_mark(&packed_git_mru, p);
 			return 1;
